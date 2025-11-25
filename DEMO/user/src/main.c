@@ -1,6 +1,8 @@
 
 // **************************** 代码区域 ****************************
 
+//2025.11.25 学习版
+
 #include "zf_common_headfile.h"
 #include "my_common.h"
 
@@ -22,6 +24,9 @@ int main(void)
     system_delay_ms(300);           //等待主板其他外设上电完成
 	Init_All();						//初始化所有外设
 	
+	
+	
+	//这里可以优化控制周期。高频率相应快，低频率计算负担小，适用于复杂算法
 	pit_ms_init(PIT_CH, 10);//开启10ms中断
 	
 	tft180_show_string(20, 0, "DianCi_demo");
