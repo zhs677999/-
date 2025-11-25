@@ -1,14 +1,14 @@
 
-// **************************** ´úÂëÇøÓò ****************************
+// ****************************  ****************************
 
-//2025.11.25 Ñ§Ï°°æ
+//2025.11.25 Ñ§Ï°
 
 #include "zf_common_headfile.h"
 #include "my_common.h"
 
-// ´ò¿ªÐÂµÄ¹¤³Ì»òÕß¹¤³ÌÒÆ¶¯ÁËÎ»ÖÃÎñ±ØÖ´ÐÐÒÔÏÂ²Ù×÷
-// µÚÒ»²½ ¹Ø±ÕÉÏÃæËùÓÐ´ò¿ªµÄÎÄ¼þ
-// µÚ¶þ²½ project->clean  µÈ´ýÏÂ·½½ø¶ÈÌõ×ßÍê
+// ÂµÄ¹Ì»ß¹Æ¶Î»Ö´Â²
+// Ò» Ø±Ð´ò¿ªµÄ¼
+// Ú¶ project->clean  È´Â·
 extern uint16_t adc_buffer[ADC_CHANNEL_NUMBER];
 extern int16 encoder_data_1;
 extern float adc_error;
@@ -16,104 +16,109 @@ extern int8 duty;         // ???? duty
 
 void Init_All(void);
 extern uint8_t roundabout_detected;
+extern uint8_t finish_detected;
 int main(void)
 {
-    clock_init(SYSTEM_CLOCK_600M);  // ²»¿ÉÉ¾³ý
-    debug_init();                   // µ÷ÊÔ¶Ë¿Ú³õÊ¼»¯
+    clock_init(SYSTEM_CLOCK_600M);  // É¾
+    debug_init();                   // Ô¶Ë¿Ú³Ê¼
 
-    system_delay_ms(300);           //µÈ´ýÖ÷°åÆäËûÍâÉèÉÏµçÍê³É
-	Init_All();						//³õÊ¼»¯ËùÓÐÍâÉè
-	
-	
-	
-	//ÕâÀï¿ÉÒÔÓÅ»¯¿ØÖÆÖÜÆÚ¡£¸ßÆµÂÊÏàÓ¦¿ì£¬µÍÆµÂÊ¼ÆËã¸ºµ£Ð¡£¬ÊÊÓÃÓÚ¸´ÔÓËã·¨
-	pit_ms_init(PIT_CH, 10);//¿ªÆô10msÖÐ¶Ï
-	
-	tft180_show_string(20, 0, "DianCi_demo");
-	tft180_show_string(0, 15, "ADC1:");
-	tft180_show_string(0, 30, "ADC2:");
-	tft180_show_string(0, 45, "ADC3:");
-	tft180_show_string(0, 60, "ADC4:");
-	tft180_show_string(0, 75, "ERROR");
-	tft180_show_string(0, 90, "ENCODER:");
-	tft180_show_string(0, 105, "DUTY:");
-	
+    system_delay_ms(300);           //È´Ïµ
+        Init_All();                                             //Ê¼
+
+
+
+        //Å»Ú¡ÆµÓ¦ì£¬ÆµÊ¼ã¸ºÐ¡Ú¸ã·¨
+        pit_ms_init(PIT_CH, CONTROL_PERIOD_MS);// ×´Ì¬Ê±
+
+        tft180_show_string(20, 0, "DianCi_demo");
+        tft180_show_string(0, 15, "ADC1:");
+        tft180_show_string(0, 30, "ADC2:");
+        tft180_show_string(0, 45, "ADC3:");
+        tft180_show_string(0, 60, "ADC4:");
+        tft180_show_string(0, 75, "ERROR");
+        tft180_show_string(0, 90, "ENCODER:");
+        tft180_show_string(0, 105, "DUTY:");
+        tft180_show_string(0, 120, "FLAG:");
+
     while(1)
     {
-        // ´Ë´¦±àÐ´ÐèÒªÑ­»·Ö´ÐÐµÄ´úÂë
+        // Ë´Ð´ÒªÑ­Ö´ÐµÄ´
         tft180_show_int(50, 15, adc_buffer[0], 4);
         tft180_show_int(50, 30, adc_buffer[1], 4);
-		tft180_show_int(50, 45, adc_buffer[2], 4);
-		tft180_show_int(50, 60, adc_buffer[3], 4);
-		
-		tft180_show_float(50, 75, adc_error, 4, 1);
-		
-		tft180_show_int(70, 90, encoder_data_1, 4);
-		
+                tft180_show_int(50, 45, adc_buffer[2], 4);
+                tft180_show_int(50, 60, adc_buffer[3], 4);
+
+                tft180_show_float(50, 75, adc_error, 4, 1);
+
+                tft180_show_int(70, 90, encoder_data_1, 4);
+
 // ???
 tft180_show_string(0, 105, "DUTY:");       // ???? DUTY
 tft180_show_int(50, 105, duty, 3);         // ???? duty ??
-        // ´Ë´¦±àÐ´ÐèÒªÑ­»·Ö´ÐÐµÄ´úÂë
+
+        tft180_show_int(40, 120, finish_detected, 1);
+        tft180_show_int(60, 120, roundabout_detected, 1);
+        // Ë´Ð´ÒªÑ­Ö´ÐµÄ´
     }
 }
 
-//´Ë³õÊ¼»¯º¯Êý¹²³õÊ¼»¯4Â·µç»ú½Ó¿Ú£¬4Â·±àÂëÆ÷½Ó¿Ú£¬4Â·µç¸ÐADC£¬ÒÔ¼°3Â·¶æ»ú½Ó¿Ú
+//Ë³Ê¼Ê¼4Â·Ó¿Ú£4Â·Ó¿Ú£4Â·ADCÔ¼3Â·Ó¿
 void Init_All(void)
 {
-	//³õÊ¼»¯µç»úÇý¶¯DRV8701
-	gpio_init(MOTOR1_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO ³õÊ¼»¯ÎªÊä³ö Ä¬ÈÏÉÏÀ­Êä³ö¸ß
-    pwm_init(MOTOR1_PWM, 17000, 0);                                                  // PWM Í¨µÀ³õÊ¼»¯ÆµÂÊ 17KHz Õ¼¿Õ±È³õÊ¼Îª 0
-    
-    gpio_init(MOTOR2_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO ³õÊ¼»¯ÎªÊä³ö Ä¬ÈÏÉÏÀ­Êä³ö¸ß
-    pwm_init(MOTOR2_PWM, 17000, 0);                                                  // PWM Í¨µÀ³õÊ¼»¯ÆµÂÊ 17KHz Õ¼¿Õ±È³õÊ¼Îª 0
+        //Ê¼DRV8701
+        gpio_init(MOTOR1_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO Ê¼Îª Ä¬
+    pwm_init(MOTOR1_PWM, 17000, 0);                                                  // PWM Í¨Ê¼Æµ 17KHz Õ¼Õ±È³Ê¼Îª 0
 
-    gpio_init(MOTOR3_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO ³õÊ¼»¯ÎªÊä³ö Ä¬ÈÏÉÏÀ­Êä³ö¸ß
-    pwm_init(MOTOR3_PWM, 17000, 0);                                                  // PWM Í¨µÀ³õÊ¼»¯ÆµÂÊ 17KHz Õ¼¿Õ±È³õÊ¼Îª 0
+    gpio_init(MOTOR2_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO Ê¼Îª Ä¬
+    pwm_init(MOTOR2_PWM, 17000, 0);                                                  // PWM Í¨Ê¼Æµ 17KHz Õ¼Õ±È³Ê¼Îª 0
 
-    gpio_init(MOTOR4_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO ³õÊ¼»¯ÎªÊä³ö Ä¬ÈÏÉÏÀ­Êä³ö¸ß
-    pwm_init(MOTOR4_PWM, 17000, 0);                                                  // PWM Í¨µÀ³õÊ¼»¯ÆµÂÊ 17KHz Õ¼¿Õ±È³õÊ¼Îª 0
+    gpio_init(MOTOR3_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO Ê¼Îª Ä¬
+    pwm_init(MOTOR3_PWM, 17000, 0);                                                  // PWM Í¨Ê¼Æµ 17KHz Õ¼Õ±È³Ê¼Îª 0
 
-	//¸ù¾Ý±àÂëÆ÷ÀàÐÍºÍ¸öÊýÑ¡Ôñ³õÊ¼»¯º¯Êý
-	//³õÊ¼»¯±àÂëÆ÷£¨Õý½»£©
-    encoder_quad_init(ENCODER_1, ENCODER_1_A, ENCODER_1_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒý½Å Õý½»½âÂë±àÂëÆ÷Ä£Ê½
-    encoder_quad_init(ENCODER_2, ENCODER_2_A, ENCODER_2_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒý½Å Õý½»½âÂë±àÂëÆ÷Ä£Ê½
-    encoder_quad_init(ENCODER_3, ENCODER_3_A, ENCODER_3_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒý½Å Õý½»½âÂë±àÂëÆ÷Ä£Ê½
-    encoder_quad_init(ENCODER_4, ENCODER_4_A, ENCODER_4_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒý½Å Õý½»½âÂë±àÂëÆ÷Ä£Ê½
-	
-	//³õÊ¼»¯±àÂëÆ÷£¨²½·½Ïò£©
-//    encoder_dir_init(ENCODER_1, ENCODER_1_A, ENCODER_1_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒý½Å
-//    encoder_dir_init(ENCODER_2, ENCODER_2_A, ENCODER_2_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒý½Å
-//    encoder_dir_init(ENCODER_3, ENCODER_3_A, ENCODER_3_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒý½Å
-//    encoder_dir_init(ENCODER_4, ENCODER_4_A, ENCODER_4_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒý½Å
-	
-	//³õÊ¼»¯adcÒý½Å
-	adc_init(ADC_CHANNEL1, ADC_12BIT);                                          // ³õÊ¼»¯¶ÔÓ¦ ADC Í¨µÀÎª¶ÔÓ¦¾«¶È
-    adc_init(ADC_CHANNEL2, ADC_12BIT);                                          // ³õÊ¼»¯¶ÔÓ¦ ADC Í¨µÀÎª¶ÔÓ¦¾«¶È
-    adc_init(ADC_CHANNEL3, ADC_12BIT);                                          // ³õÊ¼»¯¶ÔÓ¦ ADC Í¨µÀÎª¶ÔÓ¦¾«¶È
-    adc_init(ADC_CHANNEL4, ADC_12BIT);                                          // ³õÊ¼»¯¶ÔÓ¦ ADC Í¨µÀÎª¶ÔÓ¦¾«¶È
-		
-	//³õÊ¼»¯¶æ»úÒý½Å
+    gpio_init(MOTOR4_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO Ê¼Îª Ä¬
+    pwm_init(MOTOR4_PWM, 17000, 0);                                                  // PWM Í¨Ê¼Æµ 17KHz Õ¼Õ±È³Ê¼Îª 0
+
+        //Ý±ÍºÍ¸Ñ¡Ê¼
+        //Ê¼
+    encoder_quad_init(ENCODER_1, ENCODER_1_A, ENCODER_1_B); // Ê¼Ä£ Ä£Ê½
+    encoder_quad_init(ENCODER_2, ENCODER_2_A, ENCODER_2_B); // Ê¼Ä£ Ä£Ê½
+    encoder_quad_init(ENCODER_3, ENCODER_3_A, ENCODER_3_B); // Ê¼Ä£ Ä£Ê½
+    encoder_quad_init(ENCODER_4, ENCODER_4_A, ENCODER_4_B); // Ê¼Ä£ Ä£Ê½
+
+        //Ê¼
+//    encoder_dir_init(ENCODER_1, ENCODER_1_A, ENCODER_1_B); // Ê¼Ä£
+//    encoder_dir_init(ENCODER_2, ENCODER_2_A, ENCODER_2_B); // Ê¼Ä£
+//    encoder_dir_init(ENCODER_3, ENCODER_3_A, ENCODER_3_B); // Ê¼Ä£
+//    encoder_dir_init(ENCODER_4, ENCODER_4_A, ENCODER_4_B); // Ê¼Ä£
+
+        //Ê¼adc
+        adc_init(ADC_CHANNEL1, ADC_12BIT);                                          // Ê¼Ó¦ ADC Í¨ÎªÓ¦
+    adc_init(ADC_CHANNEL2, ADC_12BIT);                                          // Ê¼Ó¦ ADC Í¨ÎªÓ¦
+    adc_init(ADC_CHANNEL3, ADC_12BIT);                                          // Ê¼Ó¦ ADC Í¨ÎªÓ¦
+    adc_init(ADC_CHANNEL4, ADC_12BIT);                                          // Ê¼Ó¦ ADC Í¨ÎªÓ¦
+
+        //Ê¼
     pwm_init(SERVO_MOTOR1_PWM, SERVO_MOTOR_FREQ, 0);
     pwm_init(SERVO_MOTOR2_PWM, SERVO_MOTOR_FREQ, 0);
     pwm_init(SERVO_MOTOR3_PWM, SERVO_MOTOR_FREQ, 0);
-		
-	//³õÊ¼»¯ÆÁÄ»
-	tft180_init();
-	tft180_set_dir(TFT180_CROSSWISE);
-	
+
+        //Ê¼Ä»
+        tft180_init();
+        tft180_set_dir(TFT180_CROSSWISE);
+
 }
 
 extern void get_data();
 extern void set_servo_pwm();
 extern void set_speed_pwm();
 
-//ÖÐ¶Ïº¯Êý£¬ÔÚÖ÷º¯ÊýÖÐ³õÊ¼»¯ÎªÃ¿10msÖ´ÐÐÒ»´Î
+//Ð¶ÏºÐ³Ê¼ÎªÃ¿10msÖ´Ò»
 void pit_handler (void)
 {
-	
-	get_data();//»ñÈ¡´«¸ÐÆ÷Êý¾Ý
-	set_servo_pwm();//ÉèÖÃ¶æ»ú´ò½Ç
-	set_speed_pwm();//ÉèÖÃµç»úËÙ¶È
-	
+
+        get_data();//È¡
+        set_servo_pwm();//Ã¶
+        set_speed_pwm();//ÃµÙ¶
+
 }
 

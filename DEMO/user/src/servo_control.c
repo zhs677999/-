@@ -4,32 +4,24 @@
 // ????
 float servo_motor_angle = SERVO_MOTOR_M; 
 
-// -----------------------------------------------------------
-// PD ??????
-// -----------------------------------------------------------
-// Kp: ???????????,???????? 0.02 ~ 0.06
-float kp = 0.035; 
-
-// Kd: ?????Kp?????,?? Kd ?????????? Kp ? 3~10??
-float kd = 0.15;  
-// -----------------------------------------------------------
-
-extern float adc_error;      // ????
-float last_adc_error = 0;    // ??????? (???? D)
+extern float normalized_error;
+static float last_control_error = 0;
 
 void set_servo_pwm()
 {			
     // 1. ?? PD ??
     // P? = ?? * ??
     // D? = ?? * (???? - ????)
-    float p_out = kp * adc_error;
-    float d_out = kd * (adc_error - last_adc_error);
-    
+    float control_error = PID_ApplyDeadZone(normalized_error, SERVO_DEADZONE);
+
+    float p_out = SERVO_KP * control_error;
+    float d_out = SERVO_KD * (control_error - last_control_error);
+
     // 2. ?????? (?? - ???)
     servo_motor_angle = SERVO_MOTOR_M - (p_out + d_out);
-    
+
     // 3. ?????????
-    last_adc_error = adc_error;
+    last_control_error = control_error;
 
     // 4. ?? (????????)
     if(servo_motor_angle > SERVO_MOTOR_R_MAX) servo_motor_angle = SERVO_MOTOR_R_MAX;

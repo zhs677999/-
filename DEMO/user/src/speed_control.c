@@ -2,14 +2,30 @@
 #include "my_common.h"
 
 // ?????(??),?? 0-100
-// ?????????,?????? (?? 15)
-int8 duty = 20; 
+int8 duty = SPEED_STRAIGHT;
+
+extern float normalized_error;
+extern uint8_t roundabout_detected;
 
 void set_speed_pwm()
 {
     int32_t final_pwm;
     
     // ???????:??? 0-100 ? duty ??? PWM ??
+    int8_t target_speed = PID_SegmentSpeed(normalized_error,
+                                           SPEED_STRAIGHT,
+                                           SPEED_MILD_CURVE,
+                                           SPEED_SHARP_CURVE,
+                                           SPEED_ROUNDABOUT,
+                                           SPEED_DEADZONE);
+
+    if(roundabout_detected)
+    {
+        target_speed = SPEED_ROUNDABOUT;
+    }
+
+    duty = target_speed;
+
     final_pwm = duty * (PWM_DUTY_MAX / 100);
     
     // ???????,????
