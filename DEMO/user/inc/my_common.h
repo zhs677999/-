@@ -66,6 +66,8 @@
 #define ROUNDABOUT_DEBOUNCE         (25)
 #define ROUNDABOUT_HOLD_TIME        (150)
 #define ROUNDABOUT_COOLDOWN         (300)
+// 环岛检测“上电即触发”保护：要求左右探头都观察到低电平一段时间后才允许触发
+#define ROUNDABOUT_ARM_DEBOUNCE     (30)
 
 // 终点检测
 #define FINISH_THRESHOLD            (0.85f)  // 归一化后的阈值
