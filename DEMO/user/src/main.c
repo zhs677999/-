@@ -1,119 +1,105 @@
-
-// **************************** ´úÂëÇøÓò ****************************
-
-//2025.11.25 Ñ§Ï°°æ
+//2025.11.25 Ñ§Ï°
 
 #include "zf_common_headfile.h"
 #include "my_common.h"
 
-// ´ò¿ªĞÂµÄ¹¤³Ì»òÕß¹¤³ÌÒÆ¶¯ÁËÎ»ÖÃÎñ±ØÖ´ĞĞÒÔÏÂ²Ù×÷
-// µÚÒ»²½ ¹Ø±ÕÉÏÃæËùÓĞ´ò¿ªµÄÎÄ¼ş
-// µÚ¶ş²½ project->clean  µÈ´ıÏÂ·½½ø¶ÈÌõ×ßÍê
 extern uint16_t adc_buffer[ADC_CHANNEL_NUMBER];
 extern int16 encoder_data_1;
-extern float adc_error;
-extern int8 duty;         // ???? duty
+extern float normalized_error;
+extern uint8_t finish_detected;
+extern uint8_t roundabout_detected;
+extern int8 duty;         // å½“å‰ duty
 
 void Init_All(void);
-extern uint8_t roundabout_detected;
+
 int main(void)
 {
-    clock_init(SYSTEM_CLOCK_600M);  // ²»¿ÉÉ¾³ı
-    debug_init();                   // µ÷ÊÔ¶Ë¿Ú³õÊ¼»¯
+    clock_init(SYSTEM_CLOCK_600M);
+    debug_init();
 
-    system_delay_ms(300);           //µÈ´ıÖ÷°åÆäËûÍâÉèÉÏµçÍê³É
-	Init_All();						//³õÊ¼»¯ËùÓĞÍâÉè
-	
-	
-	
-	//ÕâÀï¿ÉÒÔÓÅ»¯¿ØÖÆÖÜÆÚ¡£¸ßÆµÂÊÏàÓ¦¿ì£¬µÍÆµÂÊ¼ÆËã¸ºµ£Ğ¡£¬ÊÊÓÃÓÚ¸´ÔÓËã·¨
-	pit_ms_init(PIT_CH, 10);//¿ªÆô10msÖĞ¶Ï
-	
-	tft180_show_string(20, 0, "DianCi_demo");
-	tft180_show_string(0, 15, "ADC1:");
-	tft180_show_string(0, 30, "ADC2:");
-	tft180_show_string(0, 45, "ADC3:");
-	tft180_show_string(0, 60, "ADC4:");
-	tft180_show_string(0, 75, "ERROR");
-	tft180_show_string(0, 90, "ENCODER:");
-	tft180_show_string(0, 105, "DUTY:");
-	
+    system_delay_ms(300);
+    Init_All();
+
+    // æ§åˆ¶å‘¨æœŸè°ƒæ•´ä¸ºå¯é…ç½®ï¼Œé»˜è®¤ 5ms
+    pit_ms_init(PIT_CH, CONTROL_PERIOD_MS);
+
+    // åˆå§‹ç•Œé¢
+    tft180_show_string(20, 0, "DianCi_demo");
+    tft180_show_string(0, 15, "ADC1:");
+    tft180_show_string(0, 30, "ADC2:");
+    tft180_show_string(0, 45, "ADC3:");
+    tft180_show_string(0, 60, "ADC4:");
+    tft180_show_string(0, 75, "ERR(N):");
+    tft180_show_string(0, 90, "ENCODER:");
+    tft180_show_string(0, 105, "DUTY:");
+    tft180_show_string(0, 120, "ROUND:");
+    tft180_show_string(0, 135, "FINISH:");
+
     while(1)
     {
-        // ´Ë´¦±àĞ´ĞèÒªÑ­»·Ö´ĞĞµÄ´úÂë
+        // å¾ªç¯æ˜¾ç¤ºå…³é”®è°ƒè¯•æ•°æ®
         tft180_show_int(50, 15, adc_buffer[0], 4);
         tft180_show_int(50, 30, adc_buffer[1], 4);
-		tft180_show_int(50, 45, adc_buffer[2], 4);
-		tft180_show_int(50, 60, adc_buffer[3], 4);
-		
-		tft180_show_float(50, 75, adc_error, 4, 1);
-		
-		tft180_show_int(70, 90, encoder_data_1, 4);
-		
-// ???
-tft180_show_string(0, 105, "DUTY:");       // ???? DUTY
-tft180_show_int(50, 105, duty, 3);         // ???? duty ??
-        // ´Ë´¦±àĞ´ĞèÒªÑ­»·Ö´ĞĞµÄ´úÂë
+        tft180_show_int(50, 45, adc_buffer[2], 4);
+        tft180_show_int(50, 60, adc_buffer[3], 4);
+
+        tft180_show_float(50, 75, normalized_error, 4, 2);
+
+        tft180_show_int(70, 90, encoder_data_1, 4);
+
+        tft180_show_int(50, 105, duty, 3);
+
+        tft180_show_int(60, 120, roundabout_detected, 1);
+        tft180_show_int(60, 135, finish_detected, 1);
     }
 }
 
-//´Ë³õÊ¼»¯º¯Êı¹²³õÊ¼»¯4Â·µç»ú½Ó¿Ú£¬4Â·±àÂëÆ÷½Ó¿Ú£¬4Â·µç¸ĞADC£¬ÒÔ¼°3Â·¶æ»ú½Ó¿Ú
+// åˆå§‹åŒ–ç¡¬ä»¶èµ„æº
 void Init_All(void)
 {
-	//³õÊ¼»¯µç»úÇı¶¯DRV8701
-	gpio_init(MOTOR1_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO ³õÊ¼»¯ÎªÊä³ö Ä¬ÈÏÉÏÀ­Êä³ö¸ß
-    pwm_init(MOTOR1_PWM, 17000, 0);                                                  // PWM Í¨µÀ³õÊ¼»¯ÆµÂÊ 17KHz Õ¼¿Õ±È³õÊ¼Îª 0
-    
-    gpio_init(MOTOR2_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO ³õÊ¼»¯ÎªÊä³ö Ä¬ÈÏÉÏÀ­Êä³ö¸ß
-    pwm_init(MOTOR2_PWM, 17000, 0);                                                  // PWM Í¨µÀ³õÊ¼»¯ÆµÂÊ 17KHz Õ¼¿Õ±È³õÊ¼Îª 0
+    // DRV8701
+    gpio_init(MOTOR1_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    pwm_init(MOTOR1_PWM, 17000, 0);
 
-    gpio_init(MOTOR3_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO ³õÊ¼»¯ÎªÊä³ö Ä¬ÈÏÉÏÀ­Êä³ö¸ß
-    pwm_init(MOTOR3_PWM, 17000, 0);                                                  // PWM Í¨µÀ³õÊ¼»¯ÆµÂÊ 17KHz Õ¼¿Õ±È³õÊ¼Îª 0
+    gpio_init(MOTOR2_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    pwm_init(MOTOR2_PWM, 17000, 0);
 
-    gpio_init(MOTOR4_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);                            // GPIO ³õÊ¼»¯ÎªÊä³ö Ä¬ÈÏÉÏÀ­Êä³ö¸ß
-    pwm_init(MOTOR4_PWM, 17000, 0);                                                  // PWM Í¨µÀ³õÊ¼»¯ÆµÂÊ 17KHz Õ¼¿Õ±È³õÊ¼Îª 0
+    gpio_init(MOTOR3_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    pwm_init(MOTOR3_PWM, 17000, 0);
 
-	//¸ù¾İ±àÂëÆ÷ÀàĞÍºÍ¸öÊıÑ¡Ôñ³õÊ¼»¯º¯Êı
-	//³õÊ¼»¯±àÂëÆ÷£¨Õı½»£©
-    encoder_quad_init(ENCODER_1, ENCODER_1_A, ENCODER_1_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒı½Å Õı½»½âÂë±àÂëÆ÷Ä£Ê½
-    encoder_quad_init(ENCODER_2, ENCODER_2_A, ENCODER_2_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒı½Å Õı½»½âÂë±àÂëÆ÷Ä£Ê½
-    encoder_quad_init(ENCODER_3, ENCODER_3_A, ENCODER_3_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒı½Å Õı½»½âÂë±àÂëÆ÷Ä£Ê½
-    encoder_quad_init(ENCODER_4, ENCODER_4_A, ENCODER_4_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒı½Å Õı½»½âÂë±àÂëÆ÷Ä£Ê½
-	
-	//³õÊ¼»¯±àÂëÆ÷£¨²½·½Ïò£©
-//    encoder_dir_init(ENCODER_1, ENCODER_1_A, ENCODER_1_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒı½Å
-//    encoder_dir_init(ENCODER_2, ENCODER_2_A, ENCODER_2_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒı½Å
-//    encoder_dir_init(ENCODER_3, ENCODER_3_A, ENCODER_3_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒı½Å
-//    encoder_dir_init(ENCODER_4, ENCODER_4_A, ENCODER_4_B); // ³õÊ¼»¯±àÂëÆ÷Ä£¿éÓëÒı½Å
-	
-	//³õÊ¼»¯adcÒı½Å
-	adc_init(ADC_CHANNEL1, ADC_12BIT);                                          // ³õÊ¼»¯¶ÔÓ¦ ADC Í¨µÀÎª¶ÔÓ¦¾«¶È
-    adc_init(ADC_CHANNEL2, ADC_12BIT);                                          // ³õÊ¼»¯¶ÔÓ¦ ADC Í¨µÀÎª¶ÔÓ¦¾«¶È
-    adc_init(ADC_CHANNEL3, ADC_12BIT);                                          // ³õÊ¼»¯¶ÔÓ¦ ADC Í¨µÀÎª¶ÔÓ¦¾«¶È
-    adc_init(ADC_CHANNEL4, ADC_12BIT);                                          // ³õÊ¼»¯¶ÔÓ¦ ADC Í¨µÀÎª¶ÔÓ¦¾«¶È
-		
-	//³õÊ¼»¯¶æ»úÒı½Å
+    gpio_init(MOTOR4_DIR, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    pwm_init(MOTOR4_PWM, 17000, 0);
+
+    // ç¼–ç å™¨
+    encoder_quad_init(ENCODER_1, ENCODER_1_A, ENCODER_1_B);
+    encoder_quad_init(ENCODER_2, ENCODER_2_A, ENCODER_2_B);
+    encoder_quad_init(ENCODER_3, ENCODER_3_A, ENCODER_3_B);
+    encoder_quad_init(ENCODER_4, ENCODER_4_A, ENCODER_4_B);
+
+    // ADC
+    adc_init(ADC_CHANNEL1, ADC_12BIT);
+    adc_init(ADC_CHANNEL2, ADC_12BIT);
+    adc_init(ADC_CHANNEL3, ADC_12BIT);
+    adc_init(ADC_CHANNEL4, ADC_12BIT);
+
+    // èˆµæœº PWM
     pwm_init(SERVO_MOTOR1_PWM, SERVO_MOTOR_FREQ, 0);
     pwm_init(SERVO_MOTOR2_PWM, SERVO_MOTOR_FREQ, 0);
     pwm_init(SERVO_MOTOR3_PWM, SERVO_MOTOR_FREQ, 0);
-		
-	//³õÊ¼»¯ÆÁÄ»
-	tft180_init();
-	tft180_set_dir(TFT180_CROSSWISE);
-	
+
+    // LCD
+    tft180_init();
+    tft180_set_dir(TFT180_CROSSWISE);
 }
 
 extern void get_data();
 extern void set_servo_pwm();
 extern void set_speed_pwm();
 
-//ÖĞ¶Ïº¯Êı£¬ÔÚÖ÷º¯ÊıÖĞ³õÊ¼»¯ÎªÃ¿10msÖ´ĞĞÒ»´Î
+// PIT ä¸­æ–­æœåŠ¡å‡½æ•°ï¼Œæ¯ä¸ªæ§åˆ¶å‘¨æœŸè°ƒç”¨
 void pit_handler (void)
 {
-	
-	get_data();//»ñÈ¡´«¸ĞÆ÷Êı¾İ
-	set_servo_pwm();//ÉèÖÃ¶æ»ú´ò½Ç
-	set_speed_pwm();//ÉèÖÃµç»úËÙ¶È
-	
+    get_data();
+    set_servo_pwm();
+    set_speed_pwm();
 }
-

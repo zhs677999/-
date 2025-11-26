@@ -3,27 +3,30 @@
 
 #include "zf_common_headfile.h"
 #include "math.h"
- // Ê¹ÓÃµÄÖÜÆÚÖĞ¶Ï±àºÅ Èç¹ûĞŞ¸Ä ĞèÒªÍ¬²½¶ÔÓ¦ĞŞ¸ÄÖÜÆÚÖĞ¶Ï±àºÅÓë isr.c ÖĞµÄµ÷ÓÃ
-#define PIT_CH                      (PIT_CH0 )                                
-#define LED1 (B9)
 
-//Õ¼¿Õ±ÈÏŞ·ù
-#define MAX_PWM_DUTY            (50) 
+// PIT é€šé“é€‰æ‹©ï¼ˆä¿®æ”¹æ—¶æ³¨æ„åŒæ­¥ isr.c ä¸­çš„é€šé“ï¼‰
+#define PIT_CH                      (PIT_CH0)
+#define LED1                        (B9)
 
-//¶¨Òåµç»úÇı¶¯Òı½Å
-#define MOTOR1_DIR               (C9)
-#define MOTOR1_PWM               (PWM2_MODULE1_CHA_C8)
+#define CONTROL_PERIOD_MS           (5)   // ä¸»æ§åˆ¶å‘¨æœŸï¼ˆpitä¸­æ–­å‘¨æœŸï¼‰ï¼Œç”¨äºè®¡æ—¶é€»è¾‘
 
-#define MOTOR2_DIR               (C7)
-#define MOTOR2_PWM               (PWM2_MODULE0_CHA_C6)
+// å ç©ºæ¯”é™åˆ¶
+#define MAX_PWM_DUTY                (50)
 
-#define MOTOR3_DIR               (D2)
-#define MOTOR3_PWM               (PWM2_MODULE3_CHB_D3)
+// ç”µæœºå¼•è„šå®šä¹‰
+#define MOTOR1_DIR                  (C9)
+#define MOTOR1_PWM                  (PWM2_MODULE1_CHA_C8)
 
-#define MOTOR4_DIR               (C10)
-#define MOTOR4_PWM               (PWM2_MODULE2_CHB_C11)
+#define MOTOR2_DIR                  (C7)
+#define MOTOR2_PWM                  (PWM2_MODULE0_CHA_C6)
 
-//¶¨Òå±àÂëÆ÷Òı½Å
+#define MOTOR3_DIR                  (D2)
+#define MOTOR3_PWM                  (PWM2_MODULE3_CHB_D3)
+
+#define MOTOR4_DIR                  (C10)
+#define MOTOR4_PWM                  (PWM2_MODULE2_CHB_C11)
+
+// ç¼–ç å™¨å¼•è„šå®šä¹‰
 #define ENCODER_1                   (QTIMER1_ENCODER1)
 #define ENCODER_1_A                 (QTIMER1_ENCODER1_CH1_C0)
 #define ENCODER_1_B                 (QTIMER1_ENCODER1_CH2_C1)
@@ -40,40 +43,76 @@
 #define ENCODER_4_A                 (QTIMER2_ENCODER2_CH1_C5)
 #define ENCODER_4_B                 (QTIMER2_ENCODER2_CH2_C25)
 
-//¶¨Òåµç´ÅĞÅºÅadcÒı½ÅºÍÏà¹ØÊı¾İ
-#define ADC_CHANNEL_NUMBER          (4) //Ê¹ÓÃµç¸Ğ¸öÊı
+// çº¿ä¼ æ„Ÿå™¨ ADC é€šé“
+#define ADC_CHANNEL_NUMBER          (4)
 
-#define ADC_CHANNEL1            (ADC1_CH12_B23)
-#define ADC_CHANNEL2            (ADC1_CH10_B21)
-#define ADC_CHANNEL3            (ADC1_CH4_B15)
-#define ADC_CHANNEL4            (ADC1_CH3_B14)
+#define ADC_CHANNEL1                (ADC1_CH12_B23)
+#define ADC_CHANNEL2                (ADC1_CH10_B21)
+#define ADC_CHANNEL3                (ADC1_CH4_B15)
+#define ADC_CHANNEL4                (ADC1_CH3_B14)
 
-//¶¨Òå¶æ»úÒı½Å
-#define SERVO_MOTOR1_PWM             (PWM4_MODULE2_CHA_C30)                         // ¶¨ÒåÖ÷°åÉÏ¶æ»ú¶ÔÓ¦Òı½Å
-#define SERVO_MOTOR2_PWM             (PWM1_MODULE3_CHA_D0)                          // ¶¨ÒåÖ÷°åÉÏ¶æ»ú¶ÔÓ¦Òı½Å
-#define SERVO_MOTOR3_PWM             (PWM1_MODULE3_CHB_D1)                          // ¶¨ÒåÖ÷°åÉÏ¶æ»ú¶ÔÓ¦Òı½Å
+// èˆµæœº PWM å®šä¹‰
+#define SERVO_MOTOR1_PWM            (PWM4_MODULE2_CHA_C30)                         // èˆµæœºè¾“å‡º
+#define SERVO_MOTOR2_PWM            (PWM1_MODULE3_CHA_D0)                          // èˆµæœºè¾“å‡º
+#define SERVO_MOTOR3_PWM            (PWM1_MODULE3_CHB_D1)                          // èˆµæœºè¾“å‡º
 
-#define SERVO_MOTOR_FREQ            (50 )                                           // ¶¨ÒåÖ÷°åÉÏ¶æ»úÆµÂÊ  ÇëÎñ±Ø×¢Òâ·¶Î§ 50-300
+#define SERVO_MOTOR_FREQ            (50)                                           // èˆµæœºé¢‘ç‡ï¼ŒèŒƒå›´ 50-300
 
-#define SERVO_MOTOR_L_MAX           (80 )                                           // ¶¨ÒåÖ÷°åÉÏ¶æ»ú»î¶¯·¶Î§ ½Ç¶È
-#define SERVO_MOTOR_R_MAX           (100)                                           // ¶¨ÒåÖ÷°åÉÏ¶æ»ú»î¶¯·¶Î§ ½Ç¶È
-#define SERVO_MOTOR_M          		  (90)																						// ¶¨ÒåÖ÷°åÉÏ¶æ»ú»î¶¯ÖĞÖµ ½Ç¶È
+#define SERVO_MOTOR_L_MAX           (80)                                           // å·¦è½¬æé™
+#define SERVO_MOTOR_R_MAX           (100)                                          // å³è½¬æé™
+#define SERVO_MOTOR_M               (90)                                           // ä¸­å€¼
 
 #define SERVO_MOTOR_DUTY(x)         ((float)PWM_DUTY_MAX/(1000.0/(float)SERVO_MOTOR_FREQ)*(0.5+(float)(x)/90.0))
 
 #if (SERVO_MOTOR_FREQ<50 || SERVO_MOTOR_FREQ>300)
-    #error "SERVO_MOTOR_FREQ ERROE!"
+    #error "SERVO_MOTOR_FREQ ERROR!"
 #endif
-// ??????
-// ???????? - ???
-#define ROUNDABOUT_THRESHOLD 800   // ????????
-//#define ROUNDABOUT_SIDE_THRESHOLD 500  // ????????
-#define ROUNDABOUT_DEBOUNCE 25       // ?????
-#define ROUNDABOUT_HOLD_TIME 150     // 0.5?(???10ms??,50??0.5?)
-#define ROUNDABOUT_COOLDOWN 300      // 0.5????? (50 * 10ms = 500ms)
 
-// ????
+// ç¯å²›æ£€æµ‹
+#define ROUNDABOUT_THRESHOLD        (800)
+#define ROUNDABOUT_DEBOUNCE         (25)
+#define ROUNDABOUT_HOLD_TIME        (150)
+#define ROUNDABOUT_COOLDOWN         (300)
+
+// ç»ˆç‚¹æ£€æµ‹
+#define FINISH_THRESHOLD            (0.85f)  // å½’ä¸€åŒ–åçš„é˜ˆå€¼
+#define FINISH_DEBOUNCE             (40)     // åŸºäºæ§åˆ¶å‘¨æœŸ
+
+// å½’ä¸€åŒ–ä¸æ»¤æ³¢é…ç½®
+#define ADC_FULL_SCALE              (4095.0f)
+#define FILTER_ALPHA                (0.35f)  // ä¸€é˜¶ä½é€šæ»¤æ³¢ç³»æ•°
+
+// é€Ÿåº¦åˆ†æ®µæ§åˆ¶
+#define STRAIGHT_DEAD_ZONE_DEG      (3.0f)   // ç›´é“æ­»åŒºï¼Œèˆµæœºåå·®å°äºè¯¥è§’åº¦æ—¶è§†ä¸ºç›´é“
+#define STRAIGHT_SPEED_DUTY         (35)     // ç›´é“ç›®æ ‡ duty
+#define CURVE_SPEED_DUTY            (26)     // å¼¯é“ç›®æ ‡ duty
+#define ROUNDABOUT_SPEED_DUTY       (22)     // ç¯å²›ã€ç»ˆç‚¹ç­‰å¤æ‚åœºæ™¯çš„é™é€Ÿ
+#define DUTY_MAX_LIMIT              (50)
+#define DUTY_MIN_LIMIT              (10)
+
+// ç”µæœº PID å‚æ•°ï¼ˆç”¨äºé€Ÿåº¦ç¯ï¼‰
+#define MOTOR_PID_KP                (0.12f)
+#define MOTOR_PID_KI                (0.02f)
+#define MOTOR_PID_KD                (0.01f)
+#define MOTOR_PID_OUTPUT_LIMIT      ((float)PWM_DUTY_MAX)
+#define MOTOR_PID_INTEGRAL_LIMIT    (150.0f)
+
+// é€Ÿåº¦é—­ç¯æœŸæœ›è®¡æ•°ï¼ˆæ ¹æ®ç¼–ç å™¨åˆ†è¾¨ç‡å¯è°ƒï¼‰
+#define TARGET_COUNT_STRAIGHT       (180.0f)
+#define TARGET_COUNT_CURVE          (120.0f)
+#define TARGET_COUNT_ROUNDABOUT     (90.0f)
+
+// å¯¹å¤–æš´éœ²çš„æ£€æµ‹çŠ¶æ€
+extern float filtered_adc[ADC_CHANNEL_NUMBER];
+extern float normalized_adc[ADC_CHANNEL_NUMBER];
+extern float normalized_error;
+extern uint8_t finish_detected;
 extern uint8_t roundabout_detected;
 extern uint16_t roundabout_timer;
 extern uint16_t roundabout_cooldown;
+
+// æ•°æ®å¤„ç†æ¥å£
+void process_sensor_data(void);
+float get_target_count_from_state(void);
+
 #endif
