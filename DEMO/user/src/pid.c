@@ -1,5 +1,18 @@
 #include "pid.h"
 
+static inline float clamp_float(float value, float min_value, float max_value)
+{
+    if(value > max_value)
+    {
+        return max_value;
+    }
+    if(value < min_value)
+    {
+        return min_value;
+    }
+    return value;
+}
+
 void pid_init(pid_controller_t *pid, float kp, float ki, float kd, float output_limit, float integral_limit)
 {
     pid->kp = kp;
@@ -22,27 +35,24 @@ float pid_update(pid_controller_t *pid, float target, float measurement)
     pid->integral += error;
 
     // 限制积分，避免积分饱和
-    if(pid->integral > pid->integral_limit)
-    {
-        pid->integral = pid->integral_limit;
-    }
-    else if(pid->integral < -pid->integral_limit)
-    {
-        pid->integral = -pid->integral_limit;
-    }
+    pid->integral = clamp_float(pid->integral, -pid->integral_limit, pid->integral_limit);
 
     float derivative = error - pid->last_error;
     pid->last_error = error;
 
     float output = pid->kp * error + pid->ki * pid->integral + pid->kd * derivative;
+    float limited_output = clamp_float(output, -pid->output_limit, pid->output_limit);
 
-    if(output > pid->output_limit)
+    // 如果输出被限幅且积分项仍在推向饱和方向，则回退积分，抑制积分饱和
+    if(limited_output != output)
     {
-        output = pid->output_limit;
-    }
-    else if(output < -pid->output_limit)
-    {
-        output = -pid->output_limit;
+        if((limited_output == pid->output_limit && error > 0) ||
+           (limited_output == -pid->output_limit && error < 0))
+        {
+            pid->integral -= error;
+            pid->integral = clamp_float(pid->integral, -pid->integral_limit, pid->integral_limit);
+        }
+        output = limited_output;
     }
 
     return output;
