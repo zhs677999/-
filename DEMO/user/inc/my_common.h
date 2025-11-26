@@ -7,6 +7,7 @@
 // PIT 通道选择（修改时注意同步 isr.c 中的通道）
 #define PIT_CH                      (PIT_CH0)
 #define LED1                        (B9)
+#define BEEP                        (B11)
 
 #define CONTROL_PERIOD_MS           (5)   // 主控制周期（pit中断周期），用于计时逻辑
 
@@ -34,14 +35,6 @@
 #define ENCODER_2                   (QTIMER1_ENCODER2)
 #define ENCODER_2_A                 (QTIMER1_ENCODER2_CH1_C2)
 #define ENCODER_2_B                 (QTIMER1_ENCODER2_CH2_C24)
-
-#define ENCODER_3                   (QTIMER2_ENCODER1)
-#define ENCODER_3_A                 (QTIMER2_ENCODER1_CH1_C3)
-#define ENCODER_3_B                 (QTIMER2_ENCODER1_CH2_C4)
-
-#define ENCODER_4                   (QTIMER2_ENCODER2)
-#define ENCODER_4_A                 (QTIMER2_ENCODER2_CH1_C5)
-#define ENCODER_4_B                 (QTIMER2_ENCODER2_CH2_C25)
 
 // 线传感器 ADC 通道
 #define ADC_CHANNEL_NUMBER          (4)

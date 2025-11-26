@@ -6,8 +6,6 @@
 // 编码器计数
 int16 encoder_data_1 = 0;
 int16 encoder_data_2 = 0;
-int16 encoder_data_3 = 0;
-int16 encoder_data_4 = 0;
 
 // ADC 原始缓冲区
 uint8 channel_index = 0;
@@ -42,12 +40,6 @@ void get_encoder()
 
     encoder_data_2 = encoder_get_count(ENCODER_2);
     encoder_clear_count(ENCODER_2);
-
-    encoder_data_3 = encoder_get_count(ENCODER_3);
-    encoder_clear_count(ENCODER_3);
-
-    encoder_data_4 = encoder_get_count(ENCODER_4);
-    encoder_clear_count(ENCODER_4);
 }
 
 // ADC 读取
@@ -113,6 +105,20 @@ static void finish_line_detect(void)
     }
 }
 
+static void update_roundabout_alert(void)
+{
+    if(roundabout_detected)
+    {
+        gpio_set_level(LED1, GPIO_HIGH);
+        gpio_set_level(BEEP, GPIO_LOW);
+    }
+    else
+    {
+        gpio_set_level(LED1, GPIO_LOW);
+        gpio_set_level(BEEP, GPIO_HIGH);
+    }
+}
+
 // 环岛检测：两侧传感器高亮并维持一定时间，带冷却
 static void roundabout_detect(void)
 {
@@ -155,6 +161,8 @@ static void roundabout_detect(void)
             roundabout_detected = 0;
         }
     }
+
+    update_roundabout_alert();
 }
 
 // 数据处理主流程
