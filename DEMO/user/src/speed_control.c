@@ -16,8 +16,6 @@ extern uint8_t finish_detected;
 extern uint8_t roundabout_detected;
 extern int16 encoder_data_1;
 extern int16 encoder_data_2;
-extern int16 encoder_data_3;
-extern int16 encoder_data_4;
 
 void set_speed_pwm()
 {
@@ -53,9 +51,8 @@ void set_speed_pwm()
     if(target_duty < DUTY_MIN_LIMIT) target_duty = DUTY_MIN_LIMIT;
     duty = target_duty;
 
-    // 读取编码器速度，取四轮平均值
-    float speed_measure = (fabsf((float)encoder_data_1) + fabsf((float)encoder_data_2) +
-                           fabsf((float)encoder_data_3) + fabsf((float)encoder_data_4)) / 4.0f;
+    // 读取编码器速度，取后轮平均值
+    float speed_measure = (fabsf((float)encoder_data_1) + fabsf((float)encoder_data_2)) / 2.0f;
 
     // 目标速度采用编码器计数，匹配当前状态
     float target_count = get_target_count_from_state();

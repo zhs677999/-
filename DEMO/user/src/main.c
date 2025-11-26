@@ -3,11 +3,6 @@
 #include "zf_common_headfile.h"
 #include "my_common.h"
 
-extern uint16_t adc_buffer[ADC_CHANNEL_NUMBER];
-extern int16 encoder_data_1;
-extern float normalized_error;
-extern uint8_t finish_detected;
-extern uint8_t roundabout_detected;
 extern int8 duty;         // 当前 duty
 
 void Init_All(void);
@@ -23,34 +18,9 @@ int main(void)
     // 控制周期调整为可配置，默认 5ms
     pit_ms_init(PIT_CH, CONTROL_PERIOD_MS);
 
-    // 初始界面
-    tft180_show_string(20, 0, "DianCi_demo");
-    tft180_show_string(0, 15, "ADC1:");
-    tft180_show_string(0, 30, "ADC2:");
-    tft180_show_string(0, 45, "ADC3:");
-    tft180_show_string(0, 60, "ADC4:");
-    tft180_show_string(0, 75, "ERR(N):");
-    tft180_show_string(0, 90, "ENCODER:");
-    tft180_show_string(0, 105, "DUTY:");
-    tft180_show_string(0, 120, "ROUND:");
-    tft180_show_string(0, 135, "FINISH:");
-
     while(1)
     {
-        // 循环显示关键调试数据
-        tft180_show_int(50, 15, adc_buffer[0], 4);
-        tft180_show_int(50, 30, adc_buffer[1], 4);
-        tft180_show_int(50, 45, adc_buffer[2], 4);
-        tft180_show_int(50, 60, adc_buffer[3], 4);
-
-        tft180_show_float(50, 75, normalized_error, 4, 2);
-
-        tft180_show_int(70, 90, encoder_data_1, 4);
-
-        tft180_show_int(50, 105, duty, 3);
-
-        tft180_show_int(60, 120, roundabout_detected, 1);
-        tft180_show_int(60, 135, finish_detected, 1);
+        // 主循环可用于扩展其它非实时任务
     }
 }
 
@@ -73,8 +43,6 @@ void Init_All(void)
     // 编码器
     encoder_quad_init(ENCODER_1, ENCODER_1_A, ENCODER_1_B);
     encoder_quad_init(ENCODER_2, ENCODER_2_A, ENCODER_2_B);
-    encoder_quad_init(ENCODER_3, ENCODER_3_A, ENCODER_3_B);
-    encoder_quad_init(ENCODER_4, ENCODER_4_A, ENCODER_4_B);
 
     // ADC
     adc_init(ADC_CHANNEL1, ADC_12BIT);
@@ -87,9 +55,11 @@ void Init_All(void)
     pwm_init(SERVO_MOTOR2_PWM, SERVO_MOTOR_FREQ, 0);
     pwm_init(SERVO_MOTOR3_PWM, SERVO_MOTOR_FREQ, 0);
 
-    // LCD
-    tft180_init();
-    tft180_set_dir(TFT180_CROSSWISE);
+    // 指示灯与蜂鸣器
+    gpio_init(LED1, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    gpio_init(BEEP, GPO, GPIO_LOW, GPO_PUSH_PULL);
+    gpio_set_level(LED1, GPIO_LOW);
+    gpio_set_level(BEEP, GPIO_HIGH);
 }
 
 extern void get_data();
