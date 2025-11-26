@@ -412,7 +412,7 @@
             <File>
               <FileName>pid.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\pid.c</FilePath>
+              <FilePath>..\user\src\pid.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -432,7 +432,7 @@
             <File>
               <FileName>pid.h</FileName>
               <FileType>5</FileType>
-              <FilePath>.\pid.h</FilePath>
+              <FilePath>..\user\inc\pid.h</FilePath>
             </File>
           </Files>
         </Group>
