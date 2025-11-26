@@ -29,6 +29,10 @@ uint16_t roundabout_cooldown = 0;
 // 内部计时与防抖
 static uint16_t finish_counter = 0;
 static uint16_t roundabout_counter = 0;
+static uint16_t roundabout_arm_counter = 0;
+static uint8_t roundabout_armed = 0;
+static uint8_t left_seen_low = 0;
+static uint8_t right_seen_low = 0;
 
 // -------------------------------------------------------------
 
@@ -105,6 +109,37 @@ static void finish_line_detect(void)
     }
 }
 
+// 在左右探头都经历过“低->高”之后，才允许进行环岛触发，避免开机即触发误报
+static void update_roundabout_arm_state(float left_norm, float right_norm, float threshold_norm)
+{
+    if(left_norm < threshold_norm)
+    {
+        left_seen_low = 1;
+    }
+
+    if(right_norm < threshold_norm)
+    {
+        right_seen_low = 1;
+    }
+
+    if(left_seen_low && right_seen_low)
+    {
+        if(roundabout_arm_counter < 0xFFFF)
+        {
+            roundabout_arm_counter++;
+        }
+
+        if(roundabout_arm_counter >= ROUNDABOUT_ARM_DEBOUNCE)
+        {
+            roundabout_armed = 1;
+        }
+    }
+    else
+    {
+        roundabout_arm_counter = 0;
+    }
+}
+
 static void update_roundabout_alert(void)
 {
     if(roundabout_detected)
@@ -125,6 +160,18 @@ static void roundabout_detect(void)
     float left_norm = normalized_adc[0];
     float right_norm = normalized_adc[3];
     float threshold_norm = (float)ROUNDABOUT_THRESHOLD / ADC_FULL_SCALE;
+
+    update_roundabout_arm_state(left_norm, right_norm, threshold_norm);
+
+    if(!roundabout_armed)
+    {
+        roundabout_detected = 0;
+        roundabout_counter = 0;
+        roundabout_timer = 0;
+        roundabout_cooldown = 0;
+        update_roundabout_alert();
+        return;
+    }
 
     if(roundabout_cooldown > 0)
     {
