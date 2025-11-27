@@ -82,7 +82,7 @@
 #define STRAIGHT_SPEED_DUTY         (35)     // 直道目标 duty
 #define CURVE_SPEED_DUTY            (26)     // 弯道目标 duty
 #define ROUNDABOUT_SPEED_DUTY       (22)     // 环岛、终点等复杂场景的限速
-#define DUTY_MAX_LIMIT              (50)
+#define DUTY_MAX_LIMIT              (35)
 #define DUTY_MIN_LIMIT              (10)
 
 // 电机 PID 参数（用于速度环）

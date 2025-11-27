@@ -145,7 +145,7 @@ static void update_roundabout_alert(void)
     if(roundabout_detected)
     {
         gpio_set_level(LED1, GPIO_HIGH);
-        gpio_set_level(BEEP, GPIO_LOW);
+        gpio_set_level(BEEP, GPIO_HIGH);
     }
     else
     {
