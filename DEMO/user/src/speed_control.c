@@ -14,6 +14,7 @@ static uint8_t pid_initialized = 0;
 extern float servo_motor_angle;
 extern uint8_t finish_detected;
 extern uint8_t roundabout_detected;
+extern uint8_t roundabout_entry_active;
 extern int16 encoder_data_1;
 extern int16 encoder_data_2;
 
@@ -33,7 +34,7 @@ void set_speed_pwm()
     {
         target_duty = 0; // 终点停下
     }
-    else if(roundabout_detected)
+    else if(roundabout_detected || roundabout_entry_active)
     {
         target_duty = ROUNDABOUT_SPEED_DUTY;
     }

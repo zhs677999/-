@@ -25,6 +25,8 @@ uint8_t finish_detected = 0;
 uint8_t roundabout_detected = 0;
 uint16_t roundabout_timer = 0;
 uint16_t roundabout_cooldown = 0;
+uint8_t roundabout_entry_active = 0;
+uint16_t roundabout_entry_timer = 0;
 
 // 内部计时与防抖
 static uint16_t finish_counter = 0;
@@ -33,6 +35,42 @@ static uint16_t roundabout_arm_counter = 0;
 static uint8_t roundabout_armed = 0;
 static uint8_t left_seen_low = 0;
 static uint8_t right_seen_low = 0;
+
+static void reset_roundabout_state(void)
+{
+    roundabout_detected = 0;
+    roundabout_counter = 0;
+    roundabout_timer = 0;
+    roundabout_cooldown = 0;
+    roundabout_entry_active = 0;
+    roundabout_entry_timer = 0;
+}
+
+static void start_roundabout_entry(void)
+{
+    roundabout_entry_active = 1;
+    roundabout_entry_timer = ROUNDABOUT_ENTRY_HOLD;
+}
+
+static void update_roundabout_entry_state(uint8_t newly_detected)
+{
+    if(newly_detected)
+    {
+        start_roundabout_entry();
+    }
+
+    if(roundabout_entry_active)
+    {
+        if(roundabout_entry_timer > 0)
+        {
+            roundabout_entry_timer--;
+        }
+        else
+        {
+            roundabout_entry_active = 0;
+        }
+    }
+}
 
 // -------------------------------------------------------------
 
@@ -142,7 +180,7 @@ static void update_roundabout_arm_state(float left_norm, float right_norm, float
 
 static void update_roundabout_alert(void)
 {
-    if(roundabout_detected)
+    if(roundabout_detected || roundabout_entry_active)
     {
         gpio_set_level(LED1, GPIO_HIGH);
         gpio_set_level(BEEP, GPIO_HIGH);
@@ -150,7 +188,7 @@ static void update_roundabout_alert(void)
     else
     {
         gpio_set_level(LED1, GPIO_LOW);
-        gpio_set_level(BEEP, GPIO_HIGH);
+        gpio_set_level(BEEP, GPIO_LOW);
     }
 }
 
@@ -160,15 +198,13 @@ static void roundabout_detect(void)
     float left_norm = normalized_adc[0];
     float right_norm = normalized_adc[3];
     float threshold_norm = (float)ROUNDABOUT_THRESHOLD / ADC_FULL_SCALE;
+    uint8_t newly_detected = 0;
 
     update_roundabout_arm_state(left_norm, right_norm, threshold_norm);
 
     if(!roundabout_armed)
     {
-        roundabout_detected = 0;
-        roundabout_counter = 0;
-        roundabout_timer = 0;
-        roundabout_cooldown = 0;
+        reset_roundabout_state();
         update_roundabout_alert();
         return;
     }
@@ -195,6 +231,7 @@ static void roundabout_detect(void)
         roundabout_detected = 1;
         roundabout_timer = ROUNDABOUT_HOLD_TIME;
         roundabout_cooldown = ROUNDABOUT_COOLDOWN;
+        newly_detected = 1;
     }
 
     if(roundabout_detected)
@@ -209,6 +246,7 @@ static void roundabout_detect(void)
         }
     }
 
+    update_roundabout_entry_state(newly_detected);
     update_roundabout_alert();
 }
 
@@ -232,7 +270,7 @@ void get_data()
 // 根据状态选择目标编码器计数，供速度环使用
 float get_target_count_from_state(void)
 {
-    if(finish_detected || roundabout_detected)
+    if(finish_detected || roundabout_detected || roundabout_entry_active)
     {
         return TARGET_COUNT_ROUNDABOUT;
     }
