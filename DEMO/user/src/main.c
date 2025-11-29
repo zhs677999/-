@@ -59,7 +59,7 @@ void Init_All(void)
     gpio_init(LED1, GPO, GPIO_HIGH, GPO_PUSH_PULL);
     gpio_init(BEEP, GPO, GPIO_LOW, GPO_PUSH_PULL);
     gpio_set_level(LED1, GPIO_LOW);
-    gpio_set_level(BEEP, GPIO_HIGH);
+    gpio_set_level(BEEP, GPIO_LOW);
 }
 
 extern void get_data();

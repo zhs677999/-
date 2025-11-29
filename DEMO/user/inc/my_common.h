@@ -68,6 +68,8 @@
 #define ROUNDABOUT_COOLDOWN         (300)
 // 环岛检测“上电即触发”保护：要求左右探头都观察到低电平一段时间后才允许触发
 #define ROUNDABOUT_ARM_DEBOUNCE     (30)
+// 环岛进入辅助：检测到环岛后维持一段时间的稳定状态（基于控制周期）
+#define ROUNDABOUT_ENTRY_HOLD       (180)
 
 // 终点检测
 #define FINISH_THRESHOLD            (0.85f)  // 归一化后的阈值
@@ -97,6 +99,14 @@
 #define TARGET_COUNT_CURVE          (120.0f)
 #define TARGET_COUNT_ROUNDABOUT     (90.0f)
 
+// 舵机控制增强
+#define SERVO_STRAIGHT_ERROR_DEADBAND   (0.015f)   // 归一化误差小于该值时视为直道，抑制抖动
+#define SERVO_CURVE_GAIN_THRESHOLD      (0.12f)    // 超过该误差判定为急弯，提高增益
+#define SERVO_CURVE_KP_BOOST            (1.2f)
+#define SERVO_CURVE_KD_BOOST            (1.1f)
+#define SERVO_SMOOTH_ALPHA_STRAIGHT     (0.65f)    // 直道平滑系数（越大越平滑）
+#define SERVO_SMOOTH_ALPHA_CURVE        (0.25f)    // 弯道平滑系数，兼顾响应
+
 // 对外暴露的检测状态
 extern float filtered_adc[ADC_CHANNEL_NUMBER];
 extern float normalized_adc[ADC_CHANNEL_NUMBER];
@@ -105,6 +115,8 @@ extern uint8_t finish_detected;
 extern uint8_t roundabout_detected;
 extern uint16_t roundabout_timer;
 extern uint16_t roundabout_cooldown;
+extern uint8_t roundabout_entry_active;
+extern uint16_t roundabout_entry_timer;
 
 // 数据处理接口
 void process_sensor_data(void);
