@@ -57,6 +57,13 @@
 
 #define SERVO_MOTOR_DUTY(x)         ((float)PWM_DUTY_MAX/(1000.0/(float)SERVO_MOTOR_FREQ)*(0.5+(float)(x)/90.0))
 
+// 舵机控制平滑参数
+#define SERVO_ERROR_FILTER_ALPHA    (0.45f)    // 误差滤波系数，越大越依赖新值
+#define SERVO_DELTA_FILTER_ALPHA    (0.35f)    // 误差变化率滤波系数
+#define SERVO_OUTPUT_SMOOTH_ALPHA   (0.30f)    // 舵机输出平滑系数
+#define SERVO_STRAIGHT_DEADBAND     (0.015f)   // 归一化误差小于该值时视为直道，避免小幅摆动
+#define CURVE_LEAD_GAIN             (4.5f)     // 拐弯提前量增益，提升入弯响应
+
 #if (SERVO_MOTOR_FREQ<50 || SERVO_MOTOR_FREQ>300)
     #error "SERVO_MOTOR_FREQ ERROR!"
 #endif
@@ -68,6 +75,7 @@
 #define ROUNDABOUT_COOLDOWN         (300)
 // 环岛检测“上电即触发”保护：要求左右探头都观察到低电平一段时间后才允许触发
 #define ROUNDABOUT_ARM_DEBOUNCE     (30)
+#define ROUNDABOUT_ENTRY_HOLD       (60)     // 环岛触发后保持直行的周期数，帮助稳定入环
 
 // 终点检测
 #define FINISH_THRESHOLD            (0.85f)  // 归一化后的阈值
@@ -105,6 +113,7 @@ extern uint8_t finish_detected;
 extern uint8_t roundabout_detected;
 extern uint16_t roundabout_timer;
 extern uint16_t roundabout_cooldown;
+extern uint16_t roundabout_entry_timer;
 
 // 数据处理接口
 void process_sensor_data(void);
