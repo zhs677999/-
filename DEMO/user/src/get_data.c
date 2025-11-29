@@ -25,6 +25,7 @@ uint8_t finish_detected = 0;
 uint8_t roundabout_detected = 0;
 uint16_t roundabout_timer = 0;
 uint16_t roundabout_cooldown = 0;
+uint16_t roundabout_entry_timer = 0;
 
 // 内部计时与防抖
 static uint16_t finish_counter = 0;
@@ -150,7 +151,7 @@ static void update_roundabout_alert(void)
     else
     {
         gpio_set_level(LED1, GPIO_LOW);
-        gpio_set_level(BEEP, GPIO_HIGH);
+        gpio_set_level(BEEP, GPIO_LOW);
     }
 }
 
@@ -195,6 +196,7 @@ static void roundabout_detect(void)
         roundabout_detected = 1;
         roundabout_timer = ROUNDABOUT_HOLD_TIME;
         roundabout_cooldown = ROUNDABOUT_COOLDOWN;
+        roundabout_entry_timer = ROUNDABOUT_ENTRY_HOLD;
     }
 
     if(roundabout_detected)
@@ -207,6 +209,15 @@ static void roundabout_detect(void)
         {
             roundabout_detected = 0;
         }
+    }
+
+    if(roundabout_detected && roundabout_entry_timer > 0)
+    {
+        roundabout_entry_timer--;
+    }
+    else if(!roundabout_detected)
+    {
+        roundabout_entry_timer = 0;
     }
 
     update_roundabout_alert();
