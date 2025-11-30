@@ -38,29 +38,41 @@ float last_adc_error = 0;           // 上一次误差（用于 D 项）
 
 // 在servocontrol.c中添加非线性处理
 void set_servo_pwm()
-{			
-	
-	// ========== 新增：环岛强制转向逻辑 ==========
+{
+
+        // ========== 新增：环岛强制转向逻辑 ==========
     static uint16_t roundabout_detect_timer = 0;
-    
-    // 检测到环岛开始计时
-    if(roundabout_detected && !roundabout_force_active)
+    static uint8_t roundabout_trigger_latched = 0; // 一次性锁存环岛触发
+
+    // 检测到环岛开始计时，使用锁存避免依赖检测标志持续为真
+    if(!roundabout_force_active)
     {
-        if(roundabout_detect_timer < (ROUNDABOUT_DELAY_MS / CONTROL_PERIOD_MS))
+        // 首次检测到环岛时锁存触发
+        if(roundabout_detected && !roundabout_trigger_latched)
         {
-            roundabout_detect_timer++;
+            roundabout_trigger_latched = 1;
+            roundabout_detect_timer = 0;
+        }
+
+        if(roundabout_trigger_latched)
+        {
+            if(roundabout_detect_timer < (ROUNDABOUT_DELAY_MS / CONTROL_PERIOD_MS))
+            {
+                roundabout_detect_timer++;
+            }
+            else
+            {
+                // 延时完成后激活强制左打满
+                roundabout_force_active = 1;
+                roundabout_force_timer = FORCE_LEFT_DURATION_MS / CONTROL_PERIOD_MS;
+                roundabout_detect_timer = 0;
+                roundabout_trigger_latched = 0;
+            }
         }
         else
         {
-            // 1.5秒后激活强制左打满
-            roundabout_force_active = 1;
-            roundabout_force_timer = FORCE_LEFT_DURATION_MS / CONTROL_PERIOD_MS;
             roundabout_detect_timer = 0;
         }
-    }
-    else if(!roundabout_detected)
-    {
-        roundabout_detect_timer = 0;
     }
     
     // 强制左打满期间
@@ -104,6 +116,8 @@ void set_servo_pwm()
                 roundabout_exit_detected = 1;
                 roundabout_completed = 0;  // 重置环岛完成标志
                 roundabout_exit_watch_timer = 0;
+                roundabout_detect_timer = 0;
+                roundabout_trigger_latched = 0;
             }
         }
         else
@@ -123,6 +137,8 @@ void set_servo_pwm()
             roundabout_completed = 0;
             roundabout_exit_timer = 0;
             roundabout_exit_watch_timer = 0;
+            roundabout_detect_timer = 0;
+            roundabout_trigger_latched = 0;
         }
     }
 
