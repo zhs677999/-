@@ -22,8 +22,18 @@ static uint16_t roundabout_exit_watch_timer = 0; // 出口监控总时长计时�
 
 
 
+// 统一复位环岛相关状态，避免锁定无法解除
+static void reset_roundabout_state(void)
+{
+    roundabout_force_active = 0;
+    roundabout_force_timer = 0;
+    roundabout_trigger_latched = 0;
+    servo_motor_angle = SERVO_MOTOR_M;
+}
+
+
 // ????
-float servo_motor_angle = SERVO_MOTOR_M; 
+float servo_motor_angle = SERVO_MOTOR_M;
 
 // -----------------------------------------------------------
 // PD 调节参数
@@ -101,6 +111,7 @@ void set_servo_pwm()
     }
 		
     // 新增：环岛出口检测逻辑
+    // 确认出口或超时均会解锁强制转向，需确保 PIT 调度正常以推进计时
     if(roundabout_completed && !roundabout_exit_detected)
     {
         // 检测环岛出口条件：传感器信号恢复正常（误差较小）
@@ -117,7 +128,7 @@ void set_servo_pwm()
                 roundabout_completed = 0;  // 重置环岛完成标志
                 roundabout_exit_watch_timer = 0;
                 roundabout_detect_timer = 0;
-                roundabout_trigger_latched = 0;
+                reset_roundabout_state();  // 清除强制转向状态并回正，立即进入 PD 调节
             }
         }
         else
@@ -138,7 +149,7 @@ void set_servo_pwm()
             roundabout_exit_timer = 0;
             roundabout_exit_watch_timer = 0;
             roundabout_detect_timer = 0;
-            roundabout_trigger_latched = 0;
+            reset_roundabout_state();  // 超时也需解除强制转向
         }
     }
 
