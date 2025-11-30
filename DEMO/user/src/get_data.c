@@ -122,21 +122,22 @@ static void update_roundabout_alert(void)
 // 环岛检测：两侧传感器高亮并维持一定时间，带冷却
 static void roundabout_detect(void)
 {
-	 // 新增：如果在环岛完成但未确认出口的状态下，跳过检测
+    // 新增：如果在环岛完成但未确认出口的状态下，跳过检测
     extern uint8_t roundabout_completed;
     extern uint8_t roundabout_exit_detected;
-	  extern uint16_t roundabout_exit_timer ; 
+    extern uint16_t roundabout_exit_timer;
     
     if(roundabout_completed && !roundabout_exit_detected) {
         // 环岛已完成但未确认出口，跳过检测防止重复触发
         roundabout_detected = 0;
         return;
     }
-    
+
     // 如果已确认离开环岛，重置状态
     if(roundabout_exit_detected) {
         roundabout_exit_detected = 0;
         roundabout_exit_timer = 0;
+        roundabout_cooldown = ROUNDABOUT_COOLDOWN; // 离开后留出冷却时间再允许重新检测
     }
 		
 		
