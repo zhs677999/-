@@ -6,17 +6,19 @@
 // -----------------------------------------------------------
 uint16_t roundabout_force_timer = 0;     // 环岛强制转向计时器
 uint8_t roundabout_force_active = 0;     // 强制转向激活标志
-#define ROUNDABOUT_DELAY_MS 1200          // 检测到环岛后延迟时间(秒)
-#define FORCE_LEFT_DURATION_MS 1500       // 强制左打满持续时间(秒)
+#define ROUNDABOUT_DELAY_MS 1200          // 检测到环岛后延迟时间（毫秒）
+#define FORCE_LEFT_DURATION_MS 1500       // 强制左打满持续时间（毫秒）
 #define FORCE_LEFT_ANGLE SERVO_MOTOR_L_MAX // 强制左打满角度
+#define EXIT_REARM_DURATION_MS 2500       // 最长出口等待时间，超时后自动重启检测
 
 extern uint8_t roundabout_detected;      // 环岛检测标志
 
 // 新增：环岛出口检测参数
 uint8_t roundabout_exit_detected = 0;    // 环岛出口检测标志
-uint8_t roundabout_completed =0 ;
+uint8_t roundabout_completed = 0;
 uint16_t roundabout_exit_timer = 0;      // 出口确认计时器
-#define EXIT_CONFIRM_DURATION_MS 800     // 出口确认时间(2秒)
+#define EXIT_CONFIRM_DURATION_MS 800     // 出口确认时间（毫秒）
+static uint16_t roundabout_exit_watch_timer = 0; // 出口监控总时长计时器
 
 
 
@@ -74,6 +76,9 @@ void set_servo_pwm()
         {
             // 1秒后结束强制转向
             roundabout_force_active = 0;
+            roundabout_completed = 1;      // 标记环岛完成，进入出口检测阶段
+            roundabout_exit_timer = 0;
+            roundabout_exit_watch_timer = 0;
         }
         
         // 直接设置PWM并返回，跳过PD计算
@@ -83,29 +88,43 @@ void set_servo_pwm()
         return;
     }
 		
-		// 新增：环岛出口检测逻辑
-if(roundabout_completed && !roundabout_exit_detected)
-{
-    // 检测环岛出口条件：传感器信号恢复正常（误差较小）
-    if(fabsf(normalized_error) < 0.3f)  // 误差较小表示已离开环岛区域
+    // 新增：环岛出口检测逻辑
+    if(roundabout_completed && !roundabout_exit_detected)
     {
-        if(roundabout_exit_timer < (EXIT_CONFIRM_DURATION_MS / CONTROL_PERIOD_MS))
+        // 检测环岛出口条件：传感器信号恢复正常（误差较小）
+        if(fabsf(normalized_error) < 0.3f)  // 误差较小表示已离开环岛区域
         {
-            roundabout_exit_timer++;
+            if(roundabout_exit_timer < (EXIT_CONFIRM_DURATION_MS / CONTROL_PERIOD_MS))
+            {
+                roundabout_exit_timer++;
+            }
+            else
+            {
+                // 确认已离开环岛，允许重新检测
+                roundabout_exit_detected = 1;
+                roundabout_completed = 0;  // 重置环岛完成标志
+                roundabout_exit_watch_timer = 0;
+            }
         }
         else
         {
-            // 确认已离开环岛，允许重新检测
+            // 误差变大，可能还在环岛内，重置计时器
+            roundabout_exit_timer = 0;
+        }
+
+        // 即使出口迟迟未确认，超时后也自动允许重新检测，避免卡在环岛状态
+        if(roundabout_exit_watch_timer < (EXIT_REARM_DURATION_MS / CONTROL_PERIOD_MS))
+        {
+            roundabout_exit_watch_timer++;
+        }
+        else
+        {
             roundabout_exit_detected = 1;
-            roundabout_completed = 0;  // 重置环岛完成标志
+            roundabout_completed = 0;
+            roundabout_exit_timer = 0;
+            roundabout_exit_watch_timer = 0;
         }
     }
-    else
-    {
-        // 误差变大，可能还在环岛内，重置计时器
-        roundabout_exit_timer = 0;
-    }
-}
 
 
     // ========== 环岛强制转向逻辑结束 ==========
