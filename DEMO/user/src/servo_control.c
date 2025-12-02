@@ -20,10 +20,28 @@ uint16_t roundabout_exit_timer = 0;      // 出口确认计时器
 #define EXIT_CONFIRM_DURATION_MS 800     // 出口确认时间（毫秒）
 static uint16_t roundabout_exit_watch_timer = 0; // 出口监控总时长计时器
 
+// 舵机当前角度（包含强制转向状态下的输出）
+float servo_motor_angle = SERVO_MOTOR_M;
+
+// 环岛触发锁存，需跨函数复位
+static uint8_t roundabout_trigger_latched = 0; // 一次性锁存环岛触发
 
 
-// ????
-float servo_motor_angle = SERVO_MOTOR_M; 
+
+// 统一复位环岛相关状态，避免锁定无法解除
+static void reset_roundabout_state(void)
+{
+    roundabout_force_active = 0;
+    roundabout_force_timer = 0;
+    roundabout_trigger_latched = 0;
+    servo_motor_angle = SERVO_MOTOR_M;
+
+    // 平滑状态也需同步清零，避免解锁后残留偏差导致尖峰输出
+    filtered_error = 0.0f;
+    filtered_derivative = 0.0f;
+    last_enhanced_error = 0.0f;
+}
+
 
 // -----------------------------------------------------------
 // PD 调节参数
@@ -31,10 +49,16 @@ float servo_motor_angle = SERVO_MOTOR_M;
 // 基于归一化误差重新整定，整体增大舵机响应速度
 float kp = 75.0f;
 float kd = 21.0f;
+// 低通滤波系数，用于平滑误差与微分，参考速度测量的一阶滤波思路
+#define ERROR_FILTER_ALPHA 0.30f
+#define DERIVATIVE_FILTER_ALPHA 0.35f
+
+static float filtered_error = 0.0f;
+static float filtered_derivative = 0.0f;
+static float last_enhanced_error = 0.0f;
 // -----------------------------------------------------------
 
 extern float normalized_error;      // 归一化后的左右差值
-float last_adc_error = 0;           // 上一次误差（用于 D 项）
 
 // 在servocontrol.c中添加非线性处理
 void set_servo_pwm()
@@ -42,7 +66,6 @@ void set_servo_pwm()
 
         // ========== 新增：环岛强制转向逻辑 ==========
     static uint16_t roundabout_detect_timer = 0;
-    static uint8_t roundabout_trigger_latched = 0; // 一次性锁存环岛触发
 
     // 检测到环岛开始计时，使用锁存避免依赖检测标志持续为真
     if(!roundabout_force_active)
@@ -101,6 +124,7 @@ void set_servo_pwm()
     }
 		
     // 新增：环岛出口检测逻辑
+    // 确认出口或超时均会解锁强制转向，需确保 PIT 调度正常以推进计时
     if(roundabout_completed && !roundabout_exit_detected)
     {
         // 检测环岛出口条件：传感器信号恢复正常（误差较小）
@@ -117,7 +141,7 @@ void set_servo_pwm()
                 roundabout_completed = 0;  // 重置环岛完成标志
                 roundabout_exit_watch_timer = 0;
                 roundabout_detect_timer = 0;
-                roundabout_trigger_latched = 0;
+                reset_roundabout_state();  // 清除强制转向状态并回正，立即进入 PD 调节
             }
         }
         else
@@ -138,37 +162,40 @@ void set_servo_pwm()
             roundabout_exit_timer = 0;
             roundabout_exit_watch_timer = 0;
             roundabout_detect_timer = 0;
-            roundabout_trigger_latched = 0;
+            reset_roundabout_state();  // 超时也需解除强制转向
         }
     }
 
 
     // ========== 环岛强制转向逻辑结束 ==========
-		
-		
+
+
     // 非线性误差放大，对小误差敏感，对大误差饱和
     float error_gain = 1.0f;
     if (fabsf(normalized_error) > 0.2f) {
         error_gain = 1.5f;  // 大误差时增益更大
     }
-    
-    float enhanced_error = normalized_error * error_gain;
-    
-    float p_out = kp * enhanced_error;
-    float d_out = kd * (enhanced_error - last_adc_error);
-    
-    servo_motor_angle = SERVO_MOTOR_M - (p_out + d_out);
-    
-    // 其余代码保持不变...
-    
-    // 3. ?????????
-    last_adc_error = normalized_error;
 
-    // 4. ?? (????????)
+    // 一阶低通滤波抑制高频抖动，参考速度测量环的滤波方法
+    filtered_error = filtered_error * (1.0f - ERROR_FILTER_ALPHA) + normalized_error * ERROR_FILTER_ALPHA;
+
+    float enhanced_error = filtered_error * error_gain;
+
+    // 微分通道同样低通处理，降低噪声对转向的冲击
+    float raw_derivative = enhanced_error - last_enhanced_error;
+    filtered_derivative = filtered_derivative * (1.0f - DERIVATIVE_FILTER_ALPHA) + raw_derivative * DERIVATIVE_FILTER_ALPHA;
+
+    float p_out = kp * enhanced_error;
+    float d_out = kd * filtered_derivative;
+
+    servo_motor_angle = SERVO_MOTOR_M - (p_out + d_out);
+
+    last_enhanced_error = enhanced_error;
+
     if(servo_motor_angle > SERVO_MOTOR_R_MAX) servo_motor_angle = SERVO_MOTOR_R_MAX;
     if(servo_motor_angle < SERVO_MOTOR_L_MAX) servo_motor_angle = SERVO_MOTOR_L_MAX;
 
-    // 5. ?? PWM
+    // 5. 输出 PWM
     pwm_set_duty(SERVO_MOTOR1_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
     pwm_set_duty(SERVO_MOTOR2_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
     pwm_set_duty(SERVO_MOTOR3_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
