@@ -64,8 +64,12 @@
 // 环岛检测
 #define ROUNDABOUT_THRESHOLD        (800)
 #define ROUNDABOUT_DEBOUNCE         (25)
-#define ROUNDABOUT_HOLD_TIME        (150)
+#define ROUNDABOUT_HOLD_TIME        (250)  // 持续时间覆盖环岛延时（ROUNDABOUT_DELAY_MS/CONTROL_PERIOD_MS ≈ 240）
 #define ROUNDABOUT_COOLDOWN         (300)
+#define ROUNDABOUT_STATE_IDLE       (0)
+#define ROUNDABOUT_STATE_DELAY      (1)
+#define ROUNDABOUT_STATE_FORCE      (2)
+#define ROUNDABOUT_STATE_EXIT_CHECK (3)
 
 // 终点检测
 #define FINISH_THRESHOLD            (0.85f)  // 归一化后的阈值
@@ -103,6 +107,8 @@ extern uint8_t finish_detected;
 extern uint8_t roundabout_detected;
 extern uint16_t roundabout_timer;
 extern uint16_t roundabout_cooldown;
+extern uint8_t roundabout_state;
+extern uint8_t roundabout_handling;
 
 // 数据处理接口
 void process_sensor_data(void);
@@ -113,17 +119,8 @@ float get_target_count_from_state(void);
 
 
 
-// 对外暴露的检测状态
-extern float filtered_adc[ADC_CHANNEL_NUMBER];
-extern float normalized_adc[ADC_CHANNEL_NUMBER];
-extern float normalized_error;
-extern uint8_t finish_detected;
-extern uint8_t roundabout_detected;
-extern uint16_t roundabout_timer;
-extern uint16_t roundabout_cooldown;
-
 // 新增：环岛完成和出口检测状态
 extern uint8_t roundabout_completed;
-extern uint8_t roundabout_exit_detected;	
+extern uint8_t roundabout_exit_detected;
 
 #endif

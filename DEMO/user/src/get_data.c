@@ -126,6 +126,14 @@ static void roundabout_detect(void)
     extern uint8_t roundabout_completed;
     extern uint8_t roundabout_exit_detected;
     extern uint16_t roundabout_exit_timer;
+    extern uint8_t roundabout_handling;
+    extern uint8_t roundabout_state;
+
+    // 环岛处理流程未结束时直接返回，避免重复触发
+    if(roundabout_handling || roundabout_state != ROUNDABOUT_STATE_IDLE) {
+        roundabout_detected = 0;
+        return;
+    }
     
     if(roundabout_completed && !roundabout_exit_detected) {
         // 环岛已完成但未确认出口，跳过检测防止重复触发

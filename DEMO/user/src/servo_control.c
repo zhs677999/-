@@ -6,6 +6,7 @@
 // -----------------------------------------------------------
 uint16_t roundabout_force_timer = 0;     // 环岛强制转向计时器
 uint8_t roundabout_force_active = 0;     // 强制转向激活标志
+uint8_t roundabout_state = ROUNDABOUT_STATE_IDLE; // 当前环岛处理阶段
 #define ROUNDABOUT_DELAY_MS 1200          // 检测到环岛后延迟时间（毫秒）
 #define FORCE_LEFT_DURATION_MS 1500       // 强制左打满持续时间（毫秒）
 #define FORCE_LEFT_ANGLE SERVO_MOTOR_L_MAX // 强制左打满角度
@@ -19,6 +20,7 @@ uint8_t roundabout_completed = 0;
 uint16_t roundabout_exit_timer = 0;      // 出口确认计时器
 #define EXIT_CONFIRM_DURATION_MS 800     // 出口确认时间（毫秒）
 static uint16_t roundabout_exit_watch_timer = 0; // 出口监控总时长计时器
+uint8_t roundabout_handling = 0;         // 防止处理环岛期间重复触发
 
 
 
@@ -38,92 +40,108 @@ float last_adc_error = 0;           // 上一次误差（用于 D 项）
 
 // 在servocontrol.c中添加非线性处理
 void set_servo_pwm()
-{			
-	
-	// ========== 新增：环岛强制转向逻辑 ==========
+{
+
+    // ========== 新增：环岛强制转向逻辑 ==========
     static uint16_t roundabout_detect_timer = 0;
-    
-    // 检测到环岛开始计时
-    if(roundabout_detected && !roundabout_force_active)
+
+    // 环岛处理状态机：确保检测、延时、打角、出口复位各阶段可控
+    switch(roundabout_state)
     {
-        if(roundabout_detect_timer < (ROUNDABOUT_DELAY_MS / CONTROL_PERIOD_MS))
+        case ROUNDABOUT_STATE_IDLE:
         {
-            roundabout_detect_timer++;
-        }
-        else
-        {
-            // 1.5秒后激活强制左打满
-            roundabout_force_active = 1;
-            roundabout_force_timer = FORCE_LEFT_DURATION_MS / CONTROL_PERIOD_MS;
-            roundabout_detect_timer = 0;
-        }
-    }
-    else if(!roundabout_detected)
-    {
-        roundabout_detect_timer = 0;
-    }
-    
-    // 强制左打满期间
-    if(roundabout_force_active)
-    {
-        servo_motor_angle = FORCE_LEFT_ANGLE;
-        
-        if(roundabout_force_timer > 0)
-        {
-            roundabout_force_timer--;
-        }
-        else
-        {
-            // 1秒后结束强制转向
-            roundabout_force_active = 0;
-            roundabout_completed = 1;      // 标记环岛完成，进入出口检测阶段
-            roundabout_exit_timer = 0;
-            roundabout_exit_watch_timer = 0;
-        }
-        
-        // 直接设置PWM并返回，跳过PD计算
-        pwm_set_duty(SERVO_MOTOR1_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
-        pwm_set_duty(SERVO_MOTOR2_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
-        pwm_set_duty(SERVO_MOTOR3_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
-        return;
-    }
-		
-    // 新增：环岛出口检测逻辑
-    if(roundabout_completed && !roundabout_exit_detected)
-    {
-        // 检测环岛出口条件：传感器信号恢复正常（误差较小）
-        if(fabsf(normalized_error) < 0.3f)  // 误差较小表示已离开环岛区域
-        {
-            if(roundabout_exit_timer < (EXIT_CONFIRM_DURATION_MS / CONTROL_PERIOD_MS))
+            if(roundabout_detected)
             {
-                roundabout_exit_timer++;
+                roundabout_state = ROUNDABOUT_STATE_DELAY;
+                roundabout_detect_timer = 0;
+                roundabout_handling = 1;
+            }
+            break;
+        }
+
+        case ROUNDABOUT_STATE_DELAY:
+        {
+            // 延时计时不依赖检测标志持续为真
+            if(roundabout_detect_timer < (ROUNDABOUT_DELAY_MS / CONTROL_PERIOD_MS))
+            {
+                roundabout_detect_timer++;
             }
             else
             {
-                // 确认已离开环岛，允许重新检测
-                roundabout_exit_detected = 1;
-                roundabout_completed = 0;  // 重置环岛完成标志
-                roundabout_exit_watch_timer = 0;
+                roundabout_state = ROUNDABOUT_STATE_FORCE;
+                roundabout_force_active = 1;
+                roundabout_force_timer = FORCE_LEFT_DURATION_MS / CONTROL_PERIOD_MS;
+                roundabout_detected = 0;   // 触发后清除检测标志，避免速度/蜂鸣器逻辑干扰
+                roundabout_timer = 0;
             }
-        }
-        else
-        {
-            // 误差变大，可能还在环岛内，重置计时器
-            roundabout_exit_timer = 0;
+            break;
         }
 
-        // 即使出口迟迟未确认，超时后也自动允许重新检测，避免卡在环岛状态
-        if(roundabout_exit_watch_timer < (EXIT_REARM_DURATION_MS / CONTROL_PERIOD_MS))
+        case ROUNDABOUT_STATE_FORCE:
         {
-            roundabout_exit_watch_timer++;
+            servo_motor_angle = FORCE_LEFT_ANGLE;
+
+            if(roundabout_force_timer > 0)
+            {
+                roundabout_force_timer--;
+            }
+            else
+            {
+                // 打角结束，进入出口确认阶段
+                roundabout_force_active = 0;
+                roundabout_completed = 1;
+                roundabout_exit_timer = 0;
+                roundabout_exit_watch_timer = 0;
+                roundabout_state = ROUNDABOUT_STATE_EXIT_CHECK;
+            }
+
+            pwm_set_duty(SERVO_MOTOR1_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
+            pwm_set_duty(SERVO_MOTOR2_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
+            pwm_set_duty(SERVO_MOTOR3_PWM, (uint32)SERVO_MOTOR_DUTY(servo_motor_angle));
+            return;
         }
-        else
+
+        case ROUNDABOUT_STATE_EXIT_CHECK:
         {
-            roundabout_exit_detected = 1;
-            roundabout_completed = 0;
-            roundabout_exit_timer = 0;
-            roundabout_exit_watch_timer = 0;
+            // 检测环岛出口：误差回落或超时即复位
+            if(fabsf(normalized_error) < 0.3f)
+            {
+                if(roundabout_exit_timer < (EXIT_CONFIRM_DURATION_MS / CONTROL_PERIOD_MS))
+                {
+                    roundabout_exit_timer++;
+                }
+                else
+                {
+                    roundabout_exit_detected = 1;
+                }
+            }
+            else
+            {
+                roundabout_exit_timer = 0;
+            }
+
+            if(roundabout_exit_watch_timer < (EXIT_REARM_DURATION_MS / CONTROL_PERIOD_MS))
+            {
+                roundabout_exit_watch_timer++;
+            }
+            else
+            {
+                roundabout_exit_detected = 1; // 超时也允许重新检测
+            }
+
+            if(roundabout_exit_detected)
+            {
+                roundabout_completed = 0;
+                roundabout_handling = 0;
+                roundabout_state = ROUNDABOUT_STATE_IDLE;
+                roundabout_exit_timer = 0;
+                roundabout_exit_watch_timer = 0;
+            }
+            break;
         }
+        default:
+            roundabout_state = ROUNDABOUT_STATE_IDLE;
+            break;
     }
 
 
